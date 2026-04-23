@@ -5,33 +5,35 @@ services:
     image: postgres:16-alpine
     container_name: expense-db
     environment:
-      POSTGRES_USER: expenses
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: expenses
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ${DB_VOLUME_PATH:-pgdata}:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U expenses"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   backend:
+    image: prince.azurecr.io/expense-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: expense-backend
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080" # Bound to localhost to prevent external access
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/expenses
-      - SPRING_DATASOURCE_USERNAME=expenses
-      - SPRING_DATASOURCE_PASSWORD=password
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/${DB_NAME}
+      - SPRING_DATASOURCE_USERNAME=${DB_USER}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
     depends_on:
       db:
         condition: service_healthy
 
   frontend:
+    image: prince.azurecr.io/expense-frontend:latest
     build:
       context: ./frontend
       dockerfile: Dockerfile
